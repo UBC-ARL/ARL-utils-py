@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Python cache
+*.pyc
+
+# arbitrary tmp files
+**/*tmp*/

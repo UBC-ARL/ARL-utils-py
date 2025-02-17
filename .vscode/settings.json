@@ -1,0 +1,18 @@
+{
+    "cSpell.words": [
+        "addopts",
+        "allclose",
+        "argwhere",
+        "basetemp",
+        "linalg",
+        "pipx",
+        "pypoetry",
+        "pytest",
+        "rtol",
+        "testpaths",
+        "virtualenvs",
+        "xdist",
+        "xlabel",
+        "ylabel"
+    ]
+}

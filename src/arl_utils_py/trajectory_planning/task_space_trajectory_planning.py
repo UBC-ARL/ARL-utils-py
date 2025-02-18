@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from functools import cached_property
+from functools import cached_property, reduce
 from itertools import pairwise
 from typing import Callable
 
@@ -149,6 +149,10 @@ class TaskSpaceTrajectory:
                 for segment in self.segments
             }
         )
+
+    @property
+    def range(self):
+        return reduce(lambda a, b: a | b, self.__f_dict.ranges()).ranges()[0]
 
     def __call__(self, t: float) -> tuple[NDArray, Rotation]:
         p_func, R_func = self.__f_dict[t]

@@ -4,6 +4,7 @@
         "allclose",
         "argwhere",
         "basetemp",
+        "isposinf",
         "linalg",
         "pipx",
         "pypoetry",

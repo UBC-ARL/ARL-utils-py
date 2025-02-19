@@ -41,6 +41,62 @@ def quintic_trajectory_f(t0, t1, p0, p1, v0=0.0, v1=0.0, a0=0.0, a1=0.0) -> Poly
     return Polynomial(np.linalg.solve(A, b))
 
 
+def trapezoidal_trajectory_f(
+    t0, t1, p0, p1, v_max_unsigned: float = np.inf, acc_max_unsigned: float = np.inf
+) -> Callable[[float], float]:
+    v_max_max = ((p1 - p0) / (t1 - t0)) * 2
+    v_max_min = (p1 - p0) / (t1 - t0)
+
+    if v_max_unsigned > abs(v_max_max):
+        # 2 sections
+        v_max = v_max_max
+        acc = v_max / ((t1 - t0) / 2)
+        p_f_dict = RangeDict(
+            {
+                Range(t0, (t0 + t1) / 2): lambda t: p0 + 0.5 * acc * (t - t0) ** 2,
+                Range((t0 + t1) / 2, t1, include_end=True): lambda t: p1
+                - 0.5 * acc * (t1 - t) ** 2,
+            }
+        )
+    elif v_max_unsigned == abs(v_max_min):
+        # 1 section
+        acc = np.sign(p1 - p0) * np.inf
+        v_max = v_max_min
+        p_f_dict = RangeDict(
+            {
+                Range(t0, t1, include_end=True): lambda t: p0 + v_max * (t - t0),
+            }
+        )
+    elif v_max_unsigned < abs(v_max_min):
+        raise ValueError(
+            f"Given velocity limit={v_max_unsigned} is smaller than average velocity={v_max_min}"
+        )
+    else:
+        # 3 sections
+        v_max = np.sign(p1 - p0) * v_max_unsigned
+        t_blend = (t1 - t0) - ((p1 - p0) / v_max)
+        acc = v_max / t_blend
+        p_f_dict = RangeDict(
+            {
+                Range(t0, t0 + t_blend): lambda t: p0 + 0.5 * acc * (t - t0) ** 2,
+                Range(t0 + t_blend, t1 - t_blend): lambda t: p0
+                + v_max * (t - t0 - 0.5 * t_blend),
+                Range(t1 - t_blend, t1, include_end=True): lambda t: p1
+                - 0.5 * acc * (t1 - t) ** 2,
+            }
+        )
+
+    if abs(acc) > acc_max_unsigned:
+        raise ValueError(
+            f"Cannot achieve desired velocity with the given acceleration limit={acc_max_unsigned}, required acceleration={acc}"
+        )
+
+    def p_f(t):
+        return p_f_dict[t](t)
+
+    return p_f
+
+
 @dataclass(frozen=True)
 class TrajectoryPlannerBase:
     """TrajectoryPlannerBase
@@ -58,7 +114,10 @@ class TrajectoryPlannerBase:
 @dataclass(frozen=True)
 class LinearTrajectoryPlanner(TrajectoryPlannerBase):
     def __call__(self, range: Range, t: float) -> float:
-        return (t - range.start) / (range.end - range.start)
+        return TrapezoidalTrajectoryPlanner(
+            v_max_unsigned=1 / (range.end - range.start)
+        )(range, t)
+        # return (t - range.start) / (range.end - range.start)
 
 
 @dataclass(frozen=True)
@@ -71,6 +130,17 @@ class CubicTrajectoryPlanner(TrajectoryPlannerBase):
 class QuinticTrajectoryPlanner(TrajectoryPlannerBase):
     def __call__(self, range: Range, t: float) -> float:
         return float(quintic_trajectory_f(range.start, range.end, 0, 1, 0, 0, 0, 0)(t))
+
+
+@dataclass(frozen=True)
+class TrapezoidalTrajectoryPlanner(TrajectoryPlannerBase):
+    v_max_unsigned: float = np.inf
+    acc_max_unsigned: float = np.inf
+
+    def __call__(self, range: Range, t: float) -> float:
+        return trapezoidal_trajectory_f(
+            range.start, range.end, 0, 1, self.v_max_unsigned, self.acc_max_unsigned
+        )(t)
 
 
 @dataclass(frozen=True)
@@ -89,15 +159,15 @@ class TaskSpaceTrajectorySegment:
     t_range: Range
     p_f_u: Callable[[float], NDArray]
     R_f_u: Callable[[float], Rotation]
-    planner_type: type[TrajectoryPlannerBase]
+    mapping_function: TrajectoryPlannerBase
 
     @property
     def p_f_t(self) -> Callable[[float], NDArray]:
-        return lambda t: self.p_f_u(self.planner_type()(self.t_range, t))
+        return lambda t: self.p_f_u(self.mapping_function(self.t_range, t))
 
     @property
     def R_f_t(self) -> Callable[[float], Rotation]:
-        return lambda t: self.R_f_u(self.planner_type()(self.t_range, t))
+        return lambda t: self.R_f_u(self.mapping_function(self.t_range, t))
 
 
 @dataclass(frozen=True)

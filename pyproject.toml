@@ -1,31 +1,40 @@
 [project]
-name = "arl-utils-py"
-version = "0.1.0"
-description = ""
 authors = [
     { name = "Yifei Liu", email = "34564223+EzekielDaun@users.noreply.github.com" },
 ]
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "numpy (>=2.2.3,<3.0.0)",
-    "scipy (>=1.15.2,<2.0.0)",
-    "python-ranges (>=1.2.2,<2.0.0)",
-    "matplotlib (>=3.10.0,<4.0.0)",
-]
-
-[tool.poetry]
-packages = [{ include = "arl_utils_py", from = "src" }]
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
-pytest-xdist = "^3.6.1"
+name = "ARL-utils-py"
+requires-python = ">= 3.11"
+version = "0.1.0"
+dependencies = ["python-ranges>=1.2.2,<2"]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
-[tool.pytest.ini_options]
-addopts = "-n auto -s --basetemp=./tmp"
-testpaths = ["tests"]
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[tool.pixi.pypi-dependencies]
+arl_utils_py = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+[tool.pixi.feature.test.tasks]
+test = "pytest -s --basetemp=./tmp"
+test_parallel = "pytest -n auto -s --basetemp=./tmp"
+
+[tool.pixi.feature.test.dependencies]
+pytest = "*"
+pytest-xdist = "*"
+matplotlib = "*"
+
+[tool.pixi.dependencies]
+numpy = ">=2.2.3,<3"
+scipy = ">=1.15.2,<2"
+
+[tool.pixi.environments]
+test = ["test"]
+
+[dependency-groups]
+test = ["pytest"]

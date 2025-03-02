@@ -6,3 +6,7 @@
 
 # arbitrary tmp files
 **/*tmp*/
+
+# pixi environments
+.pixi
+*.egg-info
